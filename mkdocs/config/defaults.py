@@ -62,6 +62,10 @@ DEFAULT_SCHEMA = (
     # a filesystem.
     ('use_directory_urls', config_options.Type(bool, default=True)),
 
+    # Extension for each page instead of `<page_name>`.html 
+    # it would be `<page_name>`.<page_extension>
+    ('page_extension', config_options.Type(utils.string_types, default='html')),
+
     # Specify a link to the project source repo to be included
     # in the documentation pages.
     ('repo_url', config_options.RepoURL()),

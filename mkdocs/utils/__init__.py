@@ -179,7 +179,7 @@ def copy_media_files(from_dir, to_dir, exclude=None, dirty=False):
                 copy_file(source_path, output_path)
 
 
-def get_html_path(path):
+def get_html_path(path, page_extension='html'):
     """
     Map a source file path to an output html path.
 
@@ -189,11 +189,11 @@ def get_html_path(path):
     """
     path = os.path.splitext(path)[0]
     if os.path.basename(path) == 'index':
-        return path + '.html'
-    return "/".join((path, 'index.html'))
+        return path + '.' + page_extension
+    return "/".join((path, 'index.'+page_extension))
 
 
-def get_url_path(path, use_directory_urls=True):
+def get_url_path(path, use_directory_urls=True, page_extension='html'):
     """
     Map a source file path to an output html path.
 
@@ -204,10 +204,10 @@ def get_url_path(path, use_directory_urls=True):
     If `use_directory_urls` is `False`, returned URLs will include the a trailing
     `index.html` rather than just returning the directory path.
     """
-    path = get_html_path(path)
+    path = get_html_path(path, page_extension)
     url = '/' + path.replace(os.path.sep, '/')
     if use_directory_urls:
-        return url[:-len('index.html')]
+        return url[:-len('index.'+page_extension)]
     return url
 
 
