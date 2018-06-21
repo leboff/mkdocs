@@ -7,17 +7,25 @@ A basic guide to deploying your docs to various hosting providers
 ## GitHub Pages
 
 If you host the source code for a project on [GitHub], you can easily use
-[GitHub Pages] to host the documentation for your project. After you `checkout`
-the primary working branch (usually `master`) of the git repository where you
+[GitHub Pages] to host the documentation for your project. There are two basic
+types of GitHub Pages sites: [Project Pages] sites, and [User and Organization
+Pages] sites. They are nearly identical but have some important differences,
+which require a different work flow when deploying.
+
+### Project Pages
+
+Project Pages sites are simpler as the site files get deployed to a branch
+within the project repository (`gh-pages` by default). After you `checkout` the
+primary working branch (usually `master`) of the git repository where you
 maintain the source documentation for your project, run the following command:
 
 ```sh
 mkdocs gh-deploy
 ```
 
-That's it! Behind the scenes, MkDocs will build your docs and use the [ghp-import]
-tool to commit them to the gh-pages branch and push the gh-pages branch to
-GitHub.
+That's it! Behind the scenes, MkDocs will build your docs and use the
+[ghp-import] tool to commit them to the `gh-pages` branch and push the
+`gh-pages` branch to GitHub.
 
 Use `mkdocs gh-deploy --help` to get a full list of options available for the
 `gh-deploy` command.
@@ -29,12 +37,56 @@ files locally.
 
 !!! warning
 
-    You should never edit files in your gh-pages branch by hand if you're using
-    the `gh-deploy` command because you will lose your work.
+    You should never edit files in your `gh-pages` branch by hand if you're
+    using the `gh-deploy` command because you will lose your work.
+
+### Organization and User Pages
+
+User and Organization Pages sites are not tied to a specific project, and the
+site files are deployed to the `master` branch in a dedicated repository named
+with the GitHub account name. Therefore, you need working copies of two
+repositories on our local system. For example, consider the following file
+structure:
+
+```no-highlight
+my-project/
+    mkdocs.yml
+    docs/
+orgname.github.io/
+```
+
+After making and verifying updates to your project you need to change
+directories to the `orgname.github.io` repository and call the
+`mkdocs gh-deploy` command from there:
+
+```sh
+cd ../orgname.github.io/
+mkdocs gh-deploy --config-file ../my-project/mkdocs.yml --remote-branch master
+```
+
+Note that you need to explicitly point to the `mkdocs.yml` configuration file as
+it is no longer in the current working directory. You also need to inform the
+deploy script to commit to the `master` branch. You may override the default
+with the [remote_branch] configuration setting, but if you forget to change
+directories before running the deploy script, it will commit to the `master`
+branch of your project, which you probably don't want.
+
+Be aware that you will not be able to review the built site before it is pushed
+to GitHub. Therefore, you may want to verify any changes you make to the docs
+beforehand by using the `build` or `serve` commands and reviewing the built
+files locally.
+
+!!! warning
+
+    You should never edit files in your pages repository by hand if you're
+    using the `gh-deploy` command because you will lose your work.
 
 [GitHub]: https://github.com/
 [GitHub Pages]: https://pages.github.com/
+[Project Pages]: https://help.github.com/articles/user-organization-and-project-pages/#project-pages-sites
+[User and Organization Pages]: https://help.github.com/articles/user-organization-and-project-pages/#user-and-organization-pages-sites
 [ghp-import]: https://github.com/davisp/ghp-import
+[remote_branch]: ./configuration.md#remote_branch
 
 ## Read the Docs
 
@@ -57,42 +109,6 @@ public repository.
 [instructions]: https://read-the-docs.readthedocs.io/en/latest/getting_started.html#in-markdown
 [features]: http://read-the-docs.readthedocs.io/en/latest/features.html
 [theme]: /user-guide/styling-your-docs.md
-
-## PyPI
-
-If you maintain a [Python] project which is hosted on the [Python Package
-Index][PyPI] (PyPI), you can use the hosting provided at [pythonhosted.org] to
-host documentation for your project. Run the following commands from your
-project's root directory to upload your documentation:
-
-```sh
-mkdocs build
-python setup.py upload_docs --upload-dir=site
-```
-
-Your documentation will be hosted at `https://pythonhosted.org/<projectname>/`
-where `<projectname>` is the name you used to register your project with PyPI.
-
-There are a few prerequisites for the above to work:
-
-1. You must be using [Setuptools] in your `setup.py` script ([Distutils] does
-   not offer an `upload_docs` command).
-1. Your project must already be registered with PyPI (use `python setup.py
-   register`).
-1. Your `mkdocs.yml` config file and your "docs" directory (value assigned to
-   the [docs_dir] configuration option) are presumed to be in the root directory
-   of your project alongside your `setup.py` script.
-1. It is assumed that the default value (`"site"`) is assigned to the [site_dir]
-   configuration option in your `mkdocs.yaml` config file. If you have set a
-   different value, assign that value to the `--upload-dir` option.
-
-[Python]: http://www.python.org/
-[PyPI]: https://pypi.python.org/pypi
-[pythonhosted.org]: https://pythonhosted.org/
-[Setuptools]: https://pythonhosted.org/setuptools/
-[Distutils]: https://docs.python.org/2/distutils/
-[docs_dir]: configuration.md#docs_dir
-[site_dir]: configuration.md#site_dir
 
 ## Other Providers
 

@@ -21,6 +21,81 @@ The current and past members of the MkDocs team.
 * [@d0ugal](https://github.com/d0ugal/)
 * [@waylan](https://github.com/waylan/)
 
+## Development Version
+
+### Major Additions to Development Version
+
+#### Path Based Settings are Relative to Configuration File (#543)
+
+Previously any relative paths in the various configuration options were
+resolved relative to the current working directory. They are now resolved
+relative to the configuration file. As the documentation has always encouraged
+running the various MkDocs commands from the directory that contains the
+configuration file (project root), this change will not affect most users.
+However, it will make it much easier to implement automated builds or otherwise
+run commands from a location other than the project root.
+
+Simply use the `-f/--config-file` option and point it at the configuration file:
+
+```sh
+mkdocs build --config-file /path/to/my/config/file.yml
+```
+
+As previously, if no file is specified, MkDocs looks for a file named
+`mkdocs.yml` in the current working directory.
+
+#### Refactor Search Plugin
+
+The search plugin has been completely refactored to include support for the
+following features:
+
+* Use a web worker in the browser with a fallback (#1396).
+* Optionally pre-build search index locally (#859 & #1061).
+* Upgrade to lunr.js 2.x (#1319).
+* Support search in languages other than English (#826).
+* Allow the user to define the word separators (#867).
+* Only run searches for queries of length > 2 (#1127).
+* Remove dependency on require.js (#1218).
+* Compress the search index (#1128).
+
+Users can review the [configuration options][search config] available and theme
+authors should review how [search and themes] interact.
+
+[search config]: ../user-guide/configuration.md#search
+[search and themes]: ../user-guide/custom-themes.md#search_and_themes
+
+### Other Changes and Additions to Development Version
+
+* Add MkDocs version check to gh-deploy script (#640).
+* Improve Markdown extension error messages. (#782).
+* Drop official support for Python 3.3 and set `tornado>=5.0` (#1427).
+* Add support for GitLab edit links (#1435).
+* Link to GitHub issues from release notes (#644).
+* Expand {sha} and {version} in gh-deploy commit message (#1410).
+* Compress `sitemap.xml` (#1130).
+* Defer loading JS scripts (#1380).
+* Add a title attribute to the search input (#1379).
+* Update RespondJS to latest version (#1398).
+* Always load Google Analytics over HTTPS (#1397).
+* Improve scrolling frame rate (#1394).
+* Provide more version info. (#1393).
+* Refactor `writing-your-docs.md` (#1392).
+* Workaround Safari bug when zooming to &lt; 100% (#1389).
+* Remove addition of `clicky` class to body and animations. (#1387).
+* Prevent search plugin from reinjecting `extra_javascript` files (#1388).
+* Refactor `copy_media_files` util function for more flexibility (#1370).
+* Remove PyPI Deployment Docs (#1360).
+* Update links to Python-Markdown library (#1360).
+* Document how to generate manpages for MkDocs commands (#686).
+
+## Version 0.17.4
+
+* Bugfix: Add multi-level nesting support to sitemap.xml (#1482).
+
+## Version 0.17.3 (2018-03-07)
+
+* Bugfix: Set dependency `tornado>=4.1,<5.0` due to changes in 5.0 (#1428).
+
 ## Version 0.17.2 (2017-11-15)
 
 * Bugfix: Correct `extra_*` config setting regressions (#1335 & #1336).
@@ -44,10 +119,12 @@ own custom behaviors. See the included documentation for a full explanation of
 the API.
 
 The previously built-in search functionality has been removed and wrapped in a
-plugin (named "search") with no changes in behavior. If no plugins setting is
-defined in the config, then the `search` plugin will be included by default.
-See the [configuration][plugin_config] documentation for information on
-overriding the default.
+plugin (named "search") with no changes in behavior. When MkDocs builds, the
+search index is now written to `search/search_index.json` instead of
+`mkdocs/search_index.json`. If no plugins setting is defined in the config,
+then the `search` plugin will be included by default. See the
+[configuration][plugin_config] documentation for information on overriding the
+default.
 
 [Plugin API]: ../user-guide/plugins.md
 [plugin_config]: ../user-guide/configuration.md#plugins

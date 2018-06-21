@@ -35,7 +35,8 @@ URL to the generated HTML header.
 
 ### repo_url
 
-When set, provides a link to your GitHub or Bitbucket repository on each page.
+When set, provides a link to your repository (GitHub, Bitbucket, GitLab, ...)
+on each page.
 
 ```yaml
 repo_url: https://github.com/example/repository/
@@ -45,10 +46,10 @@ repo_url: https://github.com/example/repository/
 
 ### repo_name
 
-When set, provides a link to your GitHub or Bitbucket repository on each page.
+When set, provides the name for the link to your repository on each page.
 
-**default**: `'GitHub'` or `'Bitbucket'` if the `repo_url` matches those
-domains, otherwise `null`
+**default**: `'GitHub'`, `'Bitbucket'` or `'GitLab'` if the `repo_url` matches
+those domains, otherwise the hostname from the `repo_url`.
 
 ### edit_uri
 
@@ -86,14 +87,14 @@ edit_uri: root/path/docs/
 ```
 
 !!! note
-    On a few known hosts (specifically GitHub and Bitbucket), the `edit_uri` is
-    derived from the 'repo_url' and does not need to be set manually. Simply
-    defining a `repo_url` will automatically populate the `edit_uri` config
-    setting.
+    On a few known hosts (specifically GitHub, Bitbucket and GitLab), the
+    `edit_uri` is derived from the 'repo_url' and does not need to be set
+    manually. Simply defining a `repo_url` will automatically populate the
+    `edit_uri` configs setting.
 
-    For example, for a GitHub-hosted repository, the `edit_uri` would be
-    automatically set as `edit/master/docs/` (Note the `edit` path and `master`
-    branch).
+    For example, for a GitHub- or GitLab-hosted repository, the `edit_uri`
+    would be automatically set as `edit/master/docs/` (Note the `edit` path
+    and `master` branch).
 
     For a Bitbucket-hosted repository, the equivalent `edit_uri` would be
     automatically set as `src/default/docs/` (note the `src` path and `default`
@@ -105,15 +106,16 @@ edit_uri: root/path/docs/
     string to disable the automatic setting.
 
 !!! warning
-    On GitHub, the default "edit" path (`edit/master/docs/`) opens the page in
-    the online GitHub editor. This functionality requires that the user have and
-    be logged in to a GitHub account. Otherwise, the user will be redirected to
-    a login/signup page. Alternatively, use the "blob" path
+    On GitHub and GitLab, the default "edit" path (`edit/master/docs/`) opens
+    the page in the online editor. This functionality requires that the user
+    have and be logged in to a GitHub/GitLab account. Otherwise, the user will
+    be redirected to a login/signup page. Alternatively, use the "blob" path
     (`blob/master/docs/`) to open a read-only view, which supports anonymous
     access.
 
-**default**: `edit/master/docs/` or `src/default/docs/` for GitHub or Bitbucket
-repos, respectively, if `repo_url` matches those domains, otherwise `null`
+**default**: `edit/master/docs/` for GitHub and GitLab repos or
+`src/default/docs/` for a Bitbucket repo, if `repo_url` matches those domains,
+otherwise `null`
 
 ### site_description
 
@@ -213,9 +215,10 @@ If a set of key/value pairs, the following nested keys can be defined:
 
     #### custom_dir:
 
-    A directory to custom a theme. This can either be a relative directory, in
-    which case it is resolved relative to the directory containing your
-    configuration file, or it can be an absolute directory path.
+    A directory containing a custom theme. This can either be a relative
+    directory, in which case it is resolved relative to the directory containing
+    your configuration file, or it can be an absolute directory path from the
+    root of your local file system.
 
     See [styling your docs][theme_dir] for details if you would like to tweak an
     existing theme.
@@ -238,19 +241,19 @@ If a set of key/value pairs, the following nested keys can be defined:
 
 ### docs_dir
 
-Lets you set the directory containing the documentation source markdown files.
-This can either be a relative directory, in which case it is resolved relative
-to the directory containing your configuration file, or it can be an absolute
-directory path from the root of your local file system.
+The directory containing the documentation source markdown files. This can
+either be a relative directory, in which case it is resolved relative to the
+directory containing your configuration file, or it can be an absolute directory
+path from the root of your local file system.
 
 **default**: `'docs'`
 
 ### site_dir
 
-Lets you set the directory where the output HTML and other files are created.
-This can either be a relative directory, in which case it is resolved relative
-to the directory containing your configuration file, or it can be an absolute
-directory path from the root of your local file system.
+The directory where the output HTML and other files are created. This can either
+be a relative directory, in which case it is resolved relative to the directory
+containing your configuration file, or it can be an absolute directory path from
+the root of your local file system.
 
 **default**: `'site'`
 
@@ -445,15 +448,100 @@ plugins: []
 
 **default**: `['search']` (the "search" plugin included with MkDocs).
 
+#### Search
+
+A search plugin is provided by default with MkDocs which uses [lunr.js] as a
+search engine. The following config options are available to alter the behavior
+of the search plugin:
+
+##### **separator**
+
+A regular expression which matches the characters used as word separators when
+building the index. By default whitespace and the hyphen (`-`) are used. To add
+the dot (`.`) as a word separator you might do this:
+
+```yaml
+plugins:
+    - search:
+        separator: '[\s\-\.]+'
+```
+
+  **default**: `'[\s\-]+'`
+
+##### **lang**
+
+A list of languages to use when building the search index as identified by their
+[ISO 639-1] language codes. With [Lunr Languages], the following languages are
+supported:
+
+* `da`: Danish
+* `du`: Dutch
+* `en`: English
+* `fi`: Finnish
+* `fr`: French
+* `de`: German
+* `hu`: Hungarian
+* `it`: Italian
+* `jp`: Japanese
+* `no`: Norwegian
+* `pt`: Portuguese
+* `ro`: Romanian
+* `ru`: Russian
+* `es`: Spanish
+* `sv`: Swedish
+* `th`: Thai
+* `tr`: Turkish
+
+You may [contribute additional languages].
+
+!!! Warning
+
+    While search does support using multiple languages together, it is best not
+    to add additional languages unless you really need them. Each additional
+    language adds significant bandwidth requirements and uses more browser
+    resources. Generally it is best to keep each instance of MkDocs to a single
+    language.
+
+!!! Note
+
+    Lunr Languages does not currently include support for Chinese or other Asian
+    languages. However, some users have reported decent results using Japanese.
+
+**default**: `['en']`
+
+##### **prebuild_index**
+
+ Optionally generates a pre-built index of all pages, which provides some
+ performance improvements for larger sites. Before enabling, check that the
+ theme you are using explicitly supports using a prebuilt index (the builtin
+ themes do). The pre-build script requires that [Node.js] be installed and the
+ command `node` be on the system path. If this feature is enabled and fails for
+ any reason, a warning is issued. You may use the `--strict` flag when building
+ to cause such a failure to raise an error instead.
+
+ !!! Note
+
+    On smaller sites, using a pre-built index is not recommended as it creates a
+    significant increase is bandwidth requirements with little to no noticeable
+    improvement to your users. However, for larger sites (hundreds of pages),
+    the bandwidth increase is relatively small and your users will notice a
+    significant improvement in search performance.
+
+ **default**: `False`
+
 [custom themes]: custom-themes.md
 [variables that are available]: custom-themes.md#template-variables
-[pymdk-extensions]: https://pythonhosted.org/Markdown/extensions/index.html
-[pymkd]: https://pythonhosted.org/Markdown/
-[smarty]: https://pythonhosted.org/Markdown/extensions/smarty.html
-[exts]:https://pythonhosted.org/Markdown/extensions/index.html
-[3rd]: https://github.com/waylan/Python-Markdown/wiki/Third-Party-Extensions
+[pymdk-extensions]: https://python-markdown.github.io/extensions/
+[pymkd]: https://python-markdown.github.io/
+[smarty]: https://python-markdown.github.io/extensions/smarty/
+[exts]: https://python-markdown.github.io/extensions/
+[3rd]: https://github.com/Python-Markdown/markdown/wiki/Third-Party-Extensions
 [configuring pages and navigation]: writing-your-docs.md#configure-pages-and-navigation
 [theme_dir]: styling-your-docs.md#using-the-theme_dir
 [styling your docs]: styling-your-docs.md
 [extra_css]: #extra_css
 [Plugins]: plugins.md
+[lunr.js]: http://lunrjs.com/
+[ISO 639-1]: https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes
+[Lunr Languages]: https://github.com/MihaiValentin/lunr-languages#lunr-languages-----
+[contribute additional languages]: https://github.com/MihaiValentin/lunr-languages/blob/master/CONTRIBUTING.md

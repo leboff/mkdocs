@@ -2,6 +2,8 @@
 # coding: utf-8
 
 from __future__ import unicode_literals
+import os
+import sys
 import logging
 import click
 import socket
@@ -80,17 +82,22 @@ site_dir_help = "The directory to output the result of the documentation build."
 reload_help = "Enable the live reloading in the development server (this is the default)"
 no_reload_help = "Disable the live reloading in the development server."
 dirty_reload_help = "Enable the live reloading in the development server, but only re-build files that have changed"
-commit_message_help = ("A commit message to use when commiting to the "
-                       "Github Pages remote branch")
+commit_message_help = ("A commit message to use when committing to the "
+                       "Github Pages remote branch. Commit {sha} and MkDocs {version} are available as expansions")
 remote_branch_help = ("The remote branch to commit to for Github Pages. This "
                       "overrides the value specified in config")
 remote_name_help = ("The remote name to commit to for Github Pages. This "
                     "overrides the value specified in config")
 force_help = "Force the push to the repository."
+ignore_version_help = "Ignore check that build is not being deployed with an older version of MkDocs."
+
+pgk_dir = os.path.dirname(os.path.abspath(__file__))
 
 
 @click.group(context_settings={'help_option_names': ['-h', '--help']})
-@click.version_option(__version__, '-V', '--version')
+@click.version_option(
+    '{0} from {1} (Python {2})'.format(__version__, pgk_dir, sys.version[:3]),
+    '-V', '--version')
 @common_options
 def cli():
     """
@@ -166,8 +173,9 @@ def build_command(clean, config_file, strict, theme, theme_dir, site_dir):
 @click.option('-b', '--remote-branch', help=remote_branch_help)
 @click.option('-r', '--remote-name', help=remote_name_help)
 @click.option('--force', is_flag=True, help=force_help)
+@click.option('--ignore-version', is_flag=True, help=ignore_version_help)
 @common_options
-def gh_deploy_command(config_file, clean, message, remote_branch, remote_name, force):
+def gh_deploy_command(config_file, clean, message, remote_branch, remote_name, force, ignore_version):
     """Deploy your documentation to GitHub Pages"""
     try:
         cfg = config.load_config(
@@ -176,7 +184,7 @@ def gh_deploy_command(config_file, clean, message, remote_branch, remote_name, f
             remote_name=remote_name
         )
         build.build(cfg, dirty=not clean)
-        gh_deploy.gh_deploy(cfg, message=message, force=force)
+        gh_deploy.gh_deploy(cfg, message=message, force=force, ignore_version=ignore_version)
     except exceptions.ConfigurationError as e:  # pragma: no cover
         # Avoid ugly, unhelpful traceback
         raise SystemExit('\n' + str(e))

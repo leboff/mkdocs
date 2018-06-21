@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 from collections import Sequence
 import os
 from collections import namedtuple
+import markdown
 
 from mkdocs import utils, theme, plugins
 from mkdocs.config.base import Config, ValidationError
@@ -170,8 +171,9 @@ class Deprecated(BaseConfigOption):
         if config.get(key_name) is None or self.moved_to is None:
             return
 
-        warning = ('The configuration option {0} has been deprecated and will '
-                   'be removed in a future release of MkDocs.')
+        warning = ('The configuration option {0} has been deprecated and '
+                   'will be removed in a future release of MkDocs.'
+                   ''.format(key_name))
         self.warnings.append(warning)
 
         if '.' not in self.moved_to:
@@ -260,12 +262,14 @@ class RepoURL(URL):
                 config['repo_name'] = 'GitHub'
             elif repo_host == 'bitbucket.org':
                 config['repo_name'] = 'Bitbucket'
+            elif repo_host == 'gitlab.com':
+                config['repo_name'] = 'GitLab'
             else:
                 config['repo_name'] = repo_host.split('.')[0].title()
 
         # derive edit_uri from repo_name if unset
         if config['repo_url'] is not None and edit_uri is None:
-            if repo_host == 'github.com':
+            if repo_host == 'github.com' or repo_host == 'gitlab.com':
                 edit_uri = 'edit/master/docs/'
             elif repo_host == 'bitbucket.org':
                 edit_uri = 'src/default/docs/'
@@ -291,6 +295,24 @@ class FilesystemObject(Type):
         super(FilesystemObject, self).__init__(type_=utils.string_types, **kwargs)
         self.exists = exists
 
+    def pre_validation(self, config, key_name):
+        value = config[key_name]
+
+        if not value:
+            return
+
+        if os.path.isabs(value):
+            return
+
+        if config.config_file_path is None:
+            # Unable to determine absolute path of the config file; fall back
+            # to trusting the relative path
+            return
+
+        config_dir = os.path.dirname(config.config_file_path)
+        value = os.path.join(config_dir, value)
+        config[key_name] = value
+
     def run_validation(self, value):
         value = super(FilesystemObject, self).run_validation(value)
         if self.exists and not self.existence_test(value):
@@ -309,9 +331,11 @@ class Dir(FilesystemObject):
     name = 'directory'
 
     def post_validation(self, config, key_name):
+        if config.config_file_path is None:
+            return
 
         # Validate that the dir is not the parent dir of the config file.
-        if os.path.dirname(config['config_file_path']) == config[key_name]:
+        if os.path.dirname(config.config_file_path) == config[key_name]:
             raise ValidationError(
                 ("The '{0}' should not be the parent directory of the config "
                  "file. Use a child directory instead so that the config file "
@@ -428,7 +452,12 @@ class Theme(BaseConfigOption):
 
         # Ensure custom_dir is an absolute path
         if 'custom_dir' in theme_config and not os.path.isabs(theme_config['custom_dir']):
-            theme_config['custom_dir'] = os.path.abspath(theme_config['custom_dir'])
+            config_dir = os.path.dirname(config.config_file_path)
+            theme_config['custom_dir'] = os.path.join(config_dir, theme_config['custom_dir'])
+
+        if 'custom_dir' in theme_config and not os.path.isdir(theme_config['custom_dir']):
+            raise ValidationError("The path set in {name}.custom_dir ('{path}') does not exist.".
+                                  format(path=theme_config['custom_dir'], name=self.name))
 
         config[key_name] = theme.Theme(**theme_config)
 
@@ -602,7 +631,16 @@ class MarkdownExtensions(OptionallyRequired):
                 extensions.append(item)
             else:
                 raise ValidationError('Invalid Markdown Extensions configuration')
-        return utils.reduce_list(self.builtins + extensions)
+
+        extensions = utils.reduce_list(self.builtins + extensions)
+
+        # Confirm that Markdown considers extensions to be valid
+        try:
+            markdown.Markdown(extensions=extensions, extension_configs=self.configdata)
+        except Exception as e:
+            raise ValidationError(e.args[0])
+
+        return extensions
 
     def post_validation(self, config, key_name):
         config[self.configkey] = self.configdata
@@ -619,6 +657,10 @@ class Plugins(OptionallyRequired):
     def __init__(self, **kwargs):
         super(Plugins, self).__init__(**kwargs)
         self.installed_plugins = plugins.get_plugins()
+        self.config_file_path = None
+
+    def pre_validation(self, config, key_name):
+        self.config_file_path = config.config_file_path
 
     def run_validation(self, value):
         if not isinstance(value, (list, tuple)):
@@ -633,11 +675,15 @@ class Plugins(OptionallyRequired):
                 if not isinstance(cfg, dict):
                     raise ValidationError('Invalid config options for '
                                           'the "{0}" plugin.'.format(name))
-                plgins[name] = self.load_plugin(name, cfg)
-            elif isinstance(item, utils.string_types):
-                plgins[item] = self.load_plugin(item, {})
+                item = name
             else:
+                cfg = {}
+
+            if not isinstance(item, utils.string_types):
                 raise ValidationError('Invalid Plugins configuration')
+
+            plgins[item] = self.load_plugin(item, cfg)
+
         return plgins
 
     def load_plugin(self, name, config):
@@ -652,7 +698,7 @@ class Plugins(OptionallyRequired):
                 plugins.BasePlugin.__name__))
 
         plugin = Plugin()
-        errors, warnings = plugin.load_config(config)
+        errors, warnings = plugin.load_config(config, self.config_file_path)
         self.warnings.extend(warnings)
         errors_message = '\n'.join(
             "Plugin value: '{}'. Error: {}".format(x, y)

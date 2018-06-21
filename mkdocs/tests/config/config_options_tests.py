@@ -2,10 +2,12 @@ from __future__ import unicode_literals
 
 import os
 import unittest
+from mock import patch
 
 import mkdocs
 from mkdocs import utils
 from mkdocs.config import config_options
+from mkdocs.config.base import Config
 
 
 class OptionallyRequiredTest(unittest.TestCase):
@@ -172,7 +174,6 @@ class RepoURLTest(unittest.TestCase):
         option = config_options.RepoURL()
         config = {'repo_url': "https://github.com/mkdocs/mkdocs"}
         option.post_validation(config, 'repo_url')
-        self.assertEqual(config['repo_url'], config['repo_url'])
         self.assertEqual(config['repo_name'], "GitHub")
 
     def test_repo_name_bitbucket(self):
@@ -180,15 +181,20 @@ class RepoURLTest(unittest.TestCase):
         option = config_options.RepoURL()
         config = {'repo_url': "https://bitbucket.org/gutworth/six/"}
         option.post_validation(config, 'repo_url')
-        self.assertEqual(config['repo_url'], config['repo_url'])
         self.assertEqual(config['repo_name'], "Bitbucket")
+
+    def test_repo_name_gitlab(self):
+
+        option = config_options.RepoURL()
+        config = {'repo_url': "https://gitlab.com/gitlab-org/gitlab-ce/"}
+        option.post_validation(config, 'repo_url')
+        self.assertEqual(config['repo_name'], "GitLab")
 
     def test_repo_name_custom(self):
 
         option = config_options.RepoURL()
         config = {'repo_url': "https://launchpad.net/python-tuskarclient"}
         option.post_validation(config, 'repo_url')
-        self.assertEqual(config['repo_url'], config['repo_url'])
         self.assertEqual(config['repo_name'], "Launchpad")
 
     def test_edit_uri_github(self):
@@ -204,6 +210,13 @@ class RepoURLTest(unittest.TestCase):
         config = {'repo_url': "https://bitbucket.org/gutworth/six/"}
         option.post_validation(config, 'repo_url')
         self.assertEqual(config['edit_uri'], 'src/default/docs/')
+
+    def test_edit_uri_gitlab(self):
+
+        option = config_options.RepoURL()
+        config = {'repo_url': "https://gitlab.com/gitlab-org/gitlab-ce/"}
+        option.post_validation(config, 'repo_url')
+        self.assertEqual(config['edit_uri'], 'edit/master/docs/')
 
     def test_edit_uri_custom(self):
 
@@ -261,18 +274,21 @@ class DirTest(unittest.TestCase):
                           option.validate, [])
 
     def test_doc_dir_is_config_dir(self):
+        cfg = Config(
+            [('docs_dir', config_options.Dir())],
+            config_file_path=os.path.join(os.path.abspath('.'), 'mkdocs.yml'),
+        )
 
         test_config = {
-            'config_file_path': os.path.join(os.path.abspath('.'), 'mkdocs.yml'),
             'docs_dir': '.'
         }
 
-        docs_dir = config_options.Dir()
+        cfg.load_dict(test_config)
 
-        test_config['docs_dir'] = docs_dir.validate(test_config['docs_dir'])
+        fails, warns = cfg.validate()
 
-        self.assertRaises(config_options.ValidationError,
-                          docs_dir.post_validation, test_config, 'docs_dir')
+        self.assertEqual(len(fails), 1)
+        self.assertEqual(len(warns), 0)
 
 
 class SiteDirTest(unittest.TestCase):
@@ -282,12 +298,23 @@ class SiteDirTest(unittest.TestCase):
         site_dir = config_options.SiteDir()
         docs_dir = config_options.Dir()
 
-        config['config_file_path'] = os.path.join(os.path.abspath('..'), 'mkdocs.yml')
+        fname = os.path.join(os.path.abspath('..'), 'mkdocs.yml')
 
         config['docs_dir'] = docs_dir.validate(config['docs_dir'])
         config['site_dir'] = site_dir.validate(config['site_dir'])
-        site_dir.post_validation(config, 'site_dir')
-        return True  # No errors were raised
+
+        schema = [
+            ('site_dir', site_dir),
+            ('docs_dir', docs_dir),
+        ]
+        cfg = Config(schema, fname)
+        cfg.load_dict(config)
+        failed, warned = cfg.validate()
+
+        if failed:
+            raise config_options.ValidationError(failed)
+
+        return True
 
     def test_doc_dir_in_site_dir(self):
 
@@ -465,7 +492,8 @@ class PrivateTest(unittest.TestCase):
 
 class MarkdownExtensionsTest(unittest.TestCase):
 
-    def test_simple_list(self):
+    @patch('markdown.Markdown')
+    def test_simple_list(self, mockMd):
         option = config_options.MarkdownExtensions()
         config = {
             'markdown_extensions': ['foo', 'bar']
@@ -477,7 +505,8 @@ class MarkdownExtensionsTest(unittest.TestCase):
             'mdx_configs': {}
         }, config)
 
-    def test_list_dicts(self):
+    @patch('markdown.Markdown')
+    def test_list_dicts(self, mockMd):
         option = config_options.MarkdownExtensions()
         config = {
             'markdown_extensions': [
@@ -496,7 +525,8 @@ class MarkdownExtensionsTest(unittest.TestCase):
             }
         }, config)
 
-    def test_mixed_list(self):
+    @patch('markdown.Markdown')
+    def test_mixed_list(self, mockMd):
         option = config_options.MarkdownExtensions()
         config = {
             'markdown_extensions': [
@@ -513,7 +543,8 @@ class MarkdownExtensionsTest(unittest.TestCase):
             }
         }, config)
 
-    def test_builtins(self):
+    @patch('markdown.Markdown')
+    def test_builtins(self, mockMd):
         option = config_options.MarkdownExtensions(builtins=['meta', 'toc'])
         config = {
             'markdown_extensions': ['foo', 'bar']
@@ -551,7 +582,8 @@ class MarkdownExtensionsTest(unittest.TestCase):
             'mdx_configs': {'toc': {'permalink': True}}
         }, config)
 
-    def test_configkey(self):
+    @patch('markdown.Markdown')
+    def test_configkey(self, mockMd):
         option = config_options.MarkdownExtensions(configkey='bar')
         config = {
             'markdown_extensions': [
@@ -579,12 +611,14 @@ class MarkdownExtensionsTest(unittest.TestCase):
             'mdx_configs': {}
         }, config)
 
-    def test_not_list(self):
+    @patch('markdown.Markdown')
+    def test_not_list(self, mockMd):
         option = config_options.MarkdownExtensions()
         self.assertRaises(config_options.ValidationError,
                           option.validate, 'not a list')
 
-    def test_invalid_config_option(self):
+    @patch('markdown.Markdown')
+    def test_invalid_config_option(self, mockMd):
         option = config_options.MarkdownExtensions()
         config = {
             'markdown_extensions': [
@@ -596,7 +630,8 @@ class MarkdownExtensionsTest(unittest.TestCase):
             option.validate, config['markdown_extensions']
         )
 
-    def test_invalid_config_item(self):
+    @patch('markdown.Markdown')
+    def test_invalid_config_item(self, mockMd):
         option = config_options.MarkdownExtensions()
         config = {
             'markdown_extensions': [
@@ -608,12 +643,23 @@ class MarkdownExtensionsTest(unittest.TestCase):
             option.validate, config['markdown_extensions']
         )
 
-    def test_invalid_dict_item(self):
+    @patch('markdown.Markdown')
+    def test_invalid_dict_item(self, mockMd):
         option = config_options.MarkdownExtensions()
         config = {
             'markdown_extensions': [
                 {'key1': 'value', 'key2': 'too many keys'}
             ]
+        }
+        self.assertRaises(
+            config_options.ValidationError,
+            option.validate, config['markdown_extensions']
+        )
+
+    def test_unknown_extension(self):
+        option = config_options.MarkdownExtensions()
+        config = {
+            'markdown_extensions': ['unknown']
         }
         self.assertRaises(
             config_options.ValidationError,
